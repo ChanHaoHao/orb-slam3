@@ -326,6 +326,12 @@ float MapPoint::GetFoundRatio()
     return static_cast<float>(mnFound)/mnVisible;
 }
 
+int MapPoint::GetBadMapCount()
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    return mnBadMapCount;
+}
+
 void MapPoint::ComputeDistinctiveDescriptors()
 {
     // Retrieve all observed descriptors

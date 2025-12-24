@@ -364,7 +364,7 @@ void LocalMapping::MapPointCulling()
 
         if(pMP->isBad())
             lit = mlpRecentAddedMapPoints.erase(lit);
-        else if(pMP->GetFoundRatio()<0.25f)
+        else if(pMP->GetFoundRatio()<0.25f || pMP->GetBadMapCount()>5)
         {
             pMP->SetBadFlag();
             lit = mlpRecentAddedMapPoints.erase(lit);

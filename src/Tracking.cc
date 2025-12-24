@@ -2905,6 +2905,92 @@ bool Tracking::TrackWithMotionModel()
             return false;
     }
 
+    // Remove features moving in different directions
+    // 1) Build MapPoint* -> keypoint index map for LAST frame
+    std::unordered_map<MapPoint*, int> last_kp_of_mp;
+    last_kp_of_mp.reserve(mLastFrame.N);
+    std::vector<tuple<int, float>> vp_matches; // (cur_index, direction_angle)
+    // 3) Cluster match directions using histogram binning
+    const int num_bins = 360;
+    std::vector<int> bins(num_bins); // each bin stores indices of vp_matches
+    const float bin_width = 2.0f * M_PI / num_bins;
+
+    for (int j = 0; j < mLastFrame.N; ++j)
+    {
+        MapPoint* pMP = mLastFrame.mvpMapPoints[j];
+        if (!pMP) continue;
+        if (pMP->isBad()) continue;
+        last_kp_of_mp[pMP] = j;  // If duplicate, last one wins (usually fine)
+    }
+
+    // 2) Iterate CURRENT frame matches and recover the previous index
+    for (int i = 0; i < mCurrentFrame.N; ++i)
+    {
+        MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
+        if (!pMP) continue;
+        if (pMP->isBad()) continue;
+
+        auto it = last_kp_of_mp.find(pMP);
+        if (it == last_kp_of_mp.end()) continue;  // not seen in last frame
+
+        int j = it->second;  // matched keypoint index in last frame
+
+        // Current and previous keypoints:
+        const cv::KeyPoint& kp_cur  = (mCurrentFrame.Nleft == -1) ? mCurrentFrame.mvKeysUn[i]
+                                : (i < mCurrentFrame.Nleft)    ? mCurrentFrame.mvKeys[i]
+                                                                : mCurrentFrame.mvKeysRight[i - mCurrentFrame.Nleft];
+
+        const cv::KeyPoint& kp_last = (mLastFrame.Nleft == -1) ? mLastFrame.mvKeysUn[j]
+                                : (j < mLastFrame.Nleft)    ? mLastFrame.mvKeys[j]
+                                                            : mLastFrame.mvKeysRight[j - mLastFrame.Nleft];
+
+        // Example: pixel displacement
+        float dx = kp_cur.pt.x - kp_last.pt.x;
+        float dy = kp_cur.pt.y - kp_last.pt.y;
+
+        // std::cout << "Match last kp " << j << " to current kp " << i
+        //           << " : dx = " << dx << ", dy = " << dy << std::endl;
+        float direction = atan2(dy, dx);  // -pi to pi
+        bins[static_cast<int>((direction + M_PI) / bin_width) % num_bins]++; // -pi maps to bin 0
+        vp_matches.emplace_back(i, direction);
+
+        // Now you have (j in last frame) <-> (i in current frame) via MapPoint pMP.
+    }
+
+    // Find the highest bin
+    int max_bin_idx = 0;
+    int max_bin_count = 0;
+    for (int b = 0; b < num_bins; ++b)
+    {
+        if (bins[b] > max_bin_count)
+        {
+            max_bin_count = bins[b];
+            max_bin_idx = b;
+        }
+    }
+
+    // remove outliers that do not belong to the highest bin
+    std::cout << "nMatches before removing outliers: " << nmatches << std::endl;
+    const int threshold = 2.0;
+    const float bin_start = (max_bin_idx - threshold) * bin_width - M_PI;
+    const float bin_end = bin_start + bin_width * (2 * threshold + 1);
+    for (const auto& match : vp_matches)
+    {
+        int cur_idx = std::get<0>(match);
+        float direction = std::get<1>(match);
+        if (direction < bin_start || direction >= bin_end)
+        {
+            if (mCurrentFrame.mvpMapPoints[cur_idx])
+            {
+                mCurrentFrame.mvpMapPoints[cur_idx]->mnBadMapCount++;
+                mCurrentFrame.mvbOutlier[cur_idx] = true;
+                mCurrentFrame.mvpMapPoints[cur_idx] = nullptr;  // frame-local rejection
+                nmatches--;
+            }
+        }
+    }
+    std::cout << "nMatches after removing outliers: " << nmatches << std::endl;
+
     // Optimize frame pose with all matches
     Optimizer::PoseOptimization(&mCurrentFrame);
 

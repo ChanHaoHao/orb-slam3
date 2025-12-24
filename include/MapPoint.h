@@ -52,6 +52,7 @@ class MapPoint
         ar & mnFirstKFid;
         ar & mnFirstFrame;
         ar & nObs;
+        ar & mnBadMapCount;
         // Variables used by the tracking
         //ar & mTrackProjX;
         //ar & mTrackProjY;
@@ -137,6 +138,7 @@ public:
     void IncreaseVisible(int n=1);
     void IncreaseFound(int n=1);
     float GetFoundRatio();
+    int GetBadMapCount();
     inline int GetFound(){
         return mnFound;
     }
@@ -166,6 +168,7 @@ public:
     long int mnFirstKFid;
     long int mnFirstFrame;
     int nObs;
+    int mnBadMapCount;
 
     // Variables used by the tracking
     float mTrackProjX;
