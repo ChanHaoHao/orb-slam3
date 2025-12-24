@@ -2906,11 +2906,11 @@ bool Tracking::TrackWithMotionModel()
     }
 
     // Remove features moving in different directions
-    // 1) Build MapPoint* -> keypoint index map for LAST frame
+    // Build MapPoint* -> keypoint index map for LAST frame
     std::unordered_map<MapPoint*, int> last_kp_of_mp;
     last_kp_of_mp.reserve(mLastFrame.N);
     std::vector<tuple<int, float>> vp_matches; // (cur_index, direction_angle)
-    // 3) Cluster match directions using histogram binning
+    // Cluster match directions using histogram binning
     const int num_bins = 360;
     std::vector<int> bins(num_bins); // each bin stores indices of vp_matches
     const float bin_width = 2.0f * M_PI / num_bins;

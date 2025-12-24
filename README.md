@@ -1,11 +1,19 @@
-# ORB-SLAM3-STEREO-FIXED
+# ORB-SLAM3-Dynamic-Scene
 
-This repository is a modified version of [ORB_SLAM3](https://github.com/zang09/ORB-SLAM3-STEREO-FIXED.git) from zang09, and followed modifications from [Dennis Liu](https://hackmd.io/@dennis40816/rJqjMi6tJe).
+This repository is a modified version of [ORB_SLAM3](https://github.com/UZ-SLAMLab/ORB_SLAM3) by removing dynamic feature points in the scene, improved ATE of different scenes from [Bonn RGB-D Dynamic Dataset](https://www.ipb.uni-bonn.de/data/rgbd-dynamic-dataset/index.html) up to 97.4%.
 
---- 
+|   |Moving_nonobstructing_box|Placing_nonobstructing_box|
+|---|---|---|
+|Origin|![alt](./images/no_SfM_rgbd_bonn_moving_nonobstructing_box.png)|![alt](./images/no_SfM_rgbd_bonn_placing_nonobstructing_box.png)|
+|ATE (m)|0.177644|0.030402|
+|SfM Pruning|![alt](./images/rgbd_bonn_moving_nonobstructing_box.png)|![alt](./images/rgbd_bonn_placing_nonobstructing_box.png)|
+|ATE (m)|0.754891|0.019903|
+|GIF|![alt](./images/Moving_nonobstructing_box.gif)|![alt](./images/Placing_nonobstructing_box.gif)|
 
-## Modification
-- Succesfully tested in **Ubuntu 24.04** and **ROS2 Jazzy**(with OpenCV 4.6.0)
+From the result, we can clearly see that, the dynamic feature points are removed once it is detected moving in a different direction than the majority of the other feature points. And after it is steady, the feature points are added back into the MapPoints for Pose-Graph optimization. With this optimization, we gained an huge improvement when mapping a scene with dynamic object using ORB-SLAM3, up to 97.4% improvement is seen.
+
+## Environment
+- Succesfully tested in **Ubuntu 24.04** (with OpenCV 4.6.0)
 
 ## How to build
 0. Clone the repo
@@ -44,41 +52,33 @@ sudo make install
 ```
 
 ## Run the code
-1. Get EuRoC dataset
+1. Get [Bonn RGB-D Dynamic Dataset](https://www.ipb.uni-bonn.de/data/rgbd-dynamic-dataset/index.html), then create a associate.txt with preprocess.py
 ```
-wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip
-```
-2. Unzip the dataset
-```
-unzip MH_01_easy.zip
-mkdir MH01
-mv mav0 MH01/mav0
-```
-3. Run the code
-- EuRoC Monocular
-```
-./Examples/Monocular/mono_euroc \ 
-    ./Vocabulary/ORBvoc.txt \ 
-    ./Examples/Monocular/EuRoC.yaml \
-    ./datasets/MH01 \
-    ./Examples/Monocular/EuRoC_TimeStamps/MH01.txt
-```
-- EuRoC Monocular-Inertial
-```
-./Examples/Monocular-Inertial/mono_inertial_euroc \
-    ./Vocabulary/ORBvoc.txt \
-    ./Examples/Monocular-Inertial/EuRoC.yaml \
-    ./datasets/MH01/ \
-    ./Examples/Monocular-Inertial/EuRoC_TimeStamps/MH01.txt
+python preprocess.py --file_root SCENE_DATASET_PATH
 ```
 
-- EuRoC Stereo
+2. Run the code
 ```
-./Examples/Stereo/stereo_euroc \
+./Examples/RGB-D/rgbd_tum \
     ./Vocabulary/ORBvoc.txt \
-    ./Examples/Stereo/EuRoC.yaml \
-    ./datasets/MH01/ \
-    ./Examples/Stereo/EuRoC_TimeStamps/MH01.txt 
+    ./Examples/RGB-D/TUM3.yaml \
+    SCENE_DATASET_ROOT_PATH \
+    SCENE_DATASET_ASSOCIATION_TXT
 ```
 
-- EuRoC Stereo-Inertia (There is some issue with this currently!)
+3. Run ATE Evaluation
+```
+python ./evaluation/evaluate_ate_tum.py \
+    GT_Trajectory \
+    SLAM_Trajectory \
+```
+
+## Parameters Adjustment
+To have different performance, adjust the strictness for removing feature points moving in different directions in `Tracking.cc` line 2914 and line 2974
+```
+// Sort the angles into different amount size of bins
+const int num_bins = 360;
+
+// Angle acceptance
+const int threshold = 2.0;
+```
