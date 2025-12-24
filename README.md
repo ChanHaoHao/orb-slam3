@@ -5,9 +5,9 @@ This repository is a modified version of [ORB_SLAM3](https://github.com/UZ-SLAML
 |   |Moving_nonobstructing_box|Placing_nonobstructing_box|
 |---|---|---|
 |Origin|![alt](./images/no_SfM_rgbd_bonn_moving_nonobstructing_box.png)|![alt](./images/no_SfM_rgbd_bonn_placing_nonobstructing_box.png)|
-|ATE (m)|0.177644|0.030402|
+|ATE (m)|0.342640|0.754891|
 |SfM Pruning|![alt](./images/rgbd_bonn_moving_nonobstructing_box.png)|![alt](./images/rgbd_bonn_placing_nonobstructing_box.png)|
-|ATE (m)|0.754891|0.019903|
+|ATE (m)|0.030402|0.019903|
 |GIF|![alt](./images/Moving_nonobstructing_box.gif)|![alt](./images/Placing_nonobstructing_box.gif)|
 
 From the result, we can clearly see that, the dynamic feature points are removed once it is detected moving in a different direction than the majority of the other feature points. And after it is steady, the feature points are added back into the MapPoints for Pose-Graph optimization. With this optimization, we gained an huge improvement when mapping a scene with dynamic object using ORB-SLAM3, up to 97.4% improvement is seen.
