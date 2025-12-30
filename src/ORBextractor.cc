@@ -1142,6 +1142,9 @@ namespace ORB_SLAM3
 
             float scale = mvScaleFactor[level]; //getScale(level, firstLevel, scaleFactor);
             int i = 0;
+
+            // For mask operation
+            Mat mask = _mask.getMat();
             for (vector<KeyPoint>::iterator keypoint = keypoints.begin(),
                          keypointEnd = keypoints.end(); keypoint != keypointEnd; ++keypoint){
 
@@ -1150,15 +1153,42 @@ namespace ORB_SLAM3
                     keypoint->pt *= scale;
                 }
 
-                if(keypoint->pt.x >= vLappingArea[0] && keypoint->pt.x <= vLappingArea[1]){
-                    _keypoints.at(stereoIndex) = (*keypoint);
-                    desc.row(i).copyTo(descriptors.row(stereoIndex));
-                    stereoIndex--;
+                // --- NEW MASK FILTERING LOGIC ---
+                bool bNearMask = false;
+                if(!mask.empty()) {
+                    int x = cvRound(keypoint->pt.x);
+                    int y = cvRound(keypoint->pt.y);
+
+                    // Check 5x5 area (from -2 to +2)
+                    for(int dy = -2; dy <= 2; dy++) {
+                        for(int dx = -2; dx <= 2; dx++) {
+                            int nx = x + dx;
+                            int ny = y + dy;
+
+                            // Boundary check
+                            if(nx >= 0 && nx < mask.cols && ny >= 0 && ny < mask.rows) {
+                                if(mask.at<uchar>(ny, nx) > 0) { // If any pixel is part of the mask
+                                    bNearMask = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if(bNearMask) break;
+                    }
                 }
-                else{
-                    _keypoints.at(monoIndex) = (*keypoint);
-                    desc.row(i).copyTo(descriptors.row(monoIndex));
-                    monoIndex++;
+
+                // Only add the keypoint if it is NOT near the mask
+                if(!bNearMask) {
+                    if(keypoint->pt.x >= vLappingArea[0] && keypoint->pt.x <= vLappingArea[1]){
+                        _keypoints.at(stereoIndex) = (*keypoint);
+                        desc.row(i).copyTo(descriptors.row(stereoIndex));
+                        stereoIndex--;
+                    }
+                    else{
+                        _keypoints.at(monoIndex) = (*keypoint);
+                        desc.row(i).copyTo(descriptors.row(monoIndex));
+                        monoIndex++;
+                    }
                 }
                 i++;
             }
